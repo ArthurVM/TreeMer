@@ -259,11 +259,12 @@ def plot_headmap(D_array, header_set, args, style="ggplot"):
 def plot_kmer_tree(Z, header_set, args, style="ggplot"):
     """ Plots a hierarchical clustering tree using Euclidean distance between kmer spectrums of provided sequences. """
 
+    # plt.tight_layout()
     plt.style.use(style)
 
     plt.figure("HCD", figsize=[20,12])
     plt.title(f"Hierarchical Clustering Dendrogram ({args.c})")
-    plt.xlabel("Sequence ID", )
+    plt.xlabel("Sequence ID")
     plt.ylabel(f"{args.d} distance")
 
     ddata = dendrogram(Z, labels=header_set, leaf_rotation=90)
