@@ -12,4 +12,4 @@ below).
 
 
 
-![SARSCOV2 Hierarchical Clustering (ward, euclidean)](https://github.com/ArthurVM/TreeMer/blob/master/SARSCOV2/HC_ed_ward.png)
+![SARSCOV2 Hierarchical Clustering (ward, euclidean)](https://github.com/ArthurVM/TreeMer/blob/master/resources/HC_ed_ward.png)
