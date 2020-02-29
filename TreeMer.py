@@ -43,7 +43,7 @@ import collections as c
 import numpy as np
 import seaborn as sns
 from os import path, system
-from scipy.cluster.hierarchy import dendrogram, linkage
+from scipy.cluster.hierarchy import dendrogram, linkage, to_tree
 from scipy.spatial.distance import pdist, squareform
 
 def main(argv):
@@ -96,7 +96,7 @@ def main(argv):
     print(f"\nCalculating {args.k}mer spectrum distance...\n")
     dist_dict = gen_Dn_dict(kmer_master_dict, args)
     print(f"Generating hierarchical clustering dendrogram...\n")
-    plot_kmer_tree(dist_dict, args)
+    plot_main(dist_dict, args)
 
 def kmerise(fasta, args):
     """ Takes a sequence file in FASTA format and digests it into a counted kmer spectrum using genKmerCount.
@@ -108,13 +108,15 @@ def kmerise(fasta, args):
     m = maximum kmer count to return kmers
     """
 
-    wd = path.dirname(args.script)
-    gKC_exec = wd + "/bin/genKmerCount"
-    ks_outfile = path.join(wd, f"{path.basename(fasta)}.k{args.k}")
+    root_dir = path.dirname(args.script)
+    gKC_exec = root_dir + "/bin/genKmerCount"
+    ks_outfile = path.join("./", f"{path.basename(fasta)}.k{args.k}")
     gKC_argline = f"{gKC_exec} {fasta} {args.k} {args.m} > {ks_outfile}"
 
+    if args.v is True:
+        ## verbose mode
+        print(f"execline: {gKC_argline}")
     ## Spawn subprocess
-    print(f"execline: {gKC_argline}")
     system(gKC_argline)
 
     return ks_outfile
@@ -203,10 +205,8 @@ def get_geolocs(args):
 
     return geolocs
 
-def plot_kmer_tree(dist_dict, args):
-    """ Plots a hierarchical clustering tree using Euclidean distance between kmer spectrums of provided sequences. """
-
-    D_array = [[d2 for h2, d2 in d1.items()] for h1, d1 in dist_dict.items()]
+def plot_main(dist_dict, args):
+    """ Control function for data plotting and output. """
 
     ## if geolocations are provided, header_set is generated to include them in header id's
     if args.g != False:
@@ -215,26 +215,26 @@ def plot_kmer_tree(dist_dict, args):
     else:
         header_set = [h for h, d in dist_dict.items()]
 
-    output_heatmap_tsv(header_set, D_array, f"./heatmap.{args.d}.tsv")
-
-    # squareform() converts the square 2D array into a condensed array for HC tree building
+    """ Pre-process and reformat data """
+    ## 2D distance array from distance dictionary
+    D_array = [[d2 for h2, d2 in d1.items()] for h1, d1 in dist_dict.items()]
+    ## convert square 2D array into a condensed array for HC tree building
     Z = linkage(squareform(D_array, force='tovector'), args.c)
 
-    # plt.tight_layout()
-    plt.style.use('ggplot')
-    # plt.subplot(122)
+    """ Generate plots and raw data outputs """
+    ## output simple heatmap in tsv format
+    output_heatmap_tsv(header_set, D_array, f"./heatmap.{args.d}.tsv")
 
-    plt.figure("HCD", figsize=[20,12])
-    plt.title(f"Hierarchical Clustering Dendrogram ({args.c})")
-    plt.xlabel("Sequence ID")
-    plt.ylabel(f"{args.d} distance")
-    dendrogram(Z, labels=header_set, leaf_rotation=90)
-    plt.savefig("./HC_dendro.png")
+    ## plot heatmap
+    plot_headmap(D_array, header_set, args)
 
-    plt.figure("HM", figsize=[20,12])
-    plt.title(f"{args.d} distance")
-    sns.heatmap(D_array, xticklabels=header_set, yticklabels=header_set, linewidth=0.0, annot=False)
-    plt.savefig("./heatmap.png")
+    ## generate a scipy tree object and output to file in Newick format
+    tree = to_tree(Z, False)
+    newick = getNewick(tree, "", tree.dist, header_set)
+    with open("./HC_tree.nwk", "w") as nwk_f: nwk_f.write(newick)
+
+    ## plot HC tree
+    plot_kmer_tree(Z, header_set, args)
 
 def output_heatmap_tsv(header_set, D_array, out_tsv="./heatmap.tsv"):
     """ Writes the heatmap of Euclidean distances generated from kmer-spectrum data in tsv format. """
@@ -245,6 +245,53 @@ def output_heatmap_tsv(header_set, D_array, out_tsv="./heatmap.tsv"):
         for i, row in enumerate(D_array):
             tsv.write(header_set[i] + "\t")
             tsv.write("\t".join([str(j) for j in row]) + "\n")
+
+def plot_headmap(D_array, header_set, args, style="ggplot"):
+    """ Plots an n by n heatmap of sequence distances """
+
+    plt.style.use(style)
+    plt.figure("HM", figsize=[20,12])
+    plt.title(f"{args.d} distance")
+    sns.heatmap(D_array, xticklabels=header_set, yticklabels=header_set, linewidth=0.0, annot=False)
+
+    plt.savefig("./heatmap.png")
+
+def plot_kmer_tree(Z, header_set, args, style="ggplot"):
+    """ Plots a hierarchical clustering tree using Euclidean distance between kmer spectrums of provided sequences. """
+
+    plt.style.use(style)
+
+    plt.figure("HCD", figsize=[20,12])
+    plt.title(f"Hierarchical Clustering Dendrogram ({args.c})")
+    plt.xlabel("Sequence ID", )
+    plt.ylabel(f"{args.d} distance")
+
+    ddata = dendrogram(Z, labels=header_set, leaf_rotation=90)
+    ## Add distances at branch roots
+    for i, d, c in zip(ddata['icoord'], ddata['dcoord'], ddata['color_list']):
+        x = 0.5 * sum(i[1:3])
+        y = d[1]
+        plt.plot(x, y, 'o', c=c)
+        plt.annotate("%.3g" % y, (x, y), xytext=(0, -5),
+                     textcoords='offset points',
+                     va='top', ha='center')
+
+    plt.savefig("./HC_dendro.png")
+
+def getNewick(node, newick, parentdist, leaf_names):
+    """ Get a newick format tree from a scipy tree object """
+
+    if node.is_leaf():
+        return "%s:%.2f%s" % (leaf_names[node.id], parentdist - node.dist, newick)
+    else:
+        if len(newick) > 0:
+            newick = "):%.2f%s" % (parentdist - node.dist, newick)
+        else:
+            newick = ");"
+        newick = getNewick(node.get_left(), newick, node.dist, leaf_names)
+        newick = getNewick(node.get_right(), f",{newick}", node.dist, leaf_names)
+        newick = f"({newick}"
+        return newick
 
 def check_format(f, args):
     """ Checks the format of f is as expected given the provided arguments. """
@@ -325,6 +372,8 @@ def parse_args(argv):
                         default='ward', help='Clustering method utilised to build the tree. Default=ward.')
     parser.add_argument('-g', type=is_file, action='store', default=False,
                         help='A tab seperated text file containing geographic locations for each sequence, ith the sequence ID in col0 an geolocation in col1. Default=False.')
+    parser.add_argument('-v', default=False, action='store_true',
+                        help='Verbose output mode. Default=False.')
 
     args = parser.parse_args(argv)
     return args
