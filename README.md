@@ -3,7 +3,16 @@ A simple tool to generate hierarchical clustering trees from nucleotide sequence
 
 ## Overview
 
-This tool calculates the distance between a set of nucleotide sequences in FASTA format by digesting them into kmer count vectors (effectively kmer spectra). The pairwise distance between all pairs of vectors are calculated and clustered to build a Hierarchical clustering tree. A number of distance metrics and clustering methods are supported (see distance and clustering). 
+This tool calculates the distance between a set of nucleotide sequences in FASTA format by digesting them into kmer count vectors (effectively kmer spectra). The pairwise distance between all pairs of vectors are calculated and clustered to build a Hierarchical clustering tree. A number of distance metrics and clustering methods are supported (see distance and clustering).
+
+## Installation
+Installation is very straightforward, simply run
+
+    git clone git@github.com:ArthurVM/TreeMer.git
+    cd TreeMer
+    python3 -m pip install -d dependencies.txt
+    
+and you are good to go!
 
 ## Input
 
@@ -66,6 +75,12 @@ TreeMer outputs the following files:
 
 A dataset of complete SARSCOV2 genomes are provided with this tool, in the `/TreeMer/SARSCOV2/SARSCOV2_WGS` directory. This includes geolocations of each isolate in `/TreeMer/SARSCOV2/geolocs.tsv`.
 
+The entire pipeline can be run using a single command fromthe TreeMer root directory:
+
+    python3 TreeMer.py SARSCOV2/SARSCOV2_WGS/* -k 7 -i 10 90 -d euclidean -c ward -g SARSCOV2/geolocs.tsv
+
+In this instance, we are calculating  the euclidean distance between 7mer frequency vectors, stripping out the 10% least and most frequent kmers, and clustered using Wards method. The subsiquent tree is:
+![Euclidean HC Ward clustering dendrogram SARSCOV2](resources/HC_ed_ward.png)
 
 
 ## Distance and Clustering
