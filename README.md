@@ -1,5 +1,5 @@
 # TreeMer
-A simple tool to generate hierarchical clustering trees from nucleotide sequences using kmer spectra distance. Included is a large testset of SARSCOV2 genomes downloaded from https://www.nlm.nih.gov/news/coronavirus_genbank.html.
+A simple tool to generate hierarchical clustering trees from nucleotide sequences using kmer spectra distance. Included is a small testset of SARSCOV2 genomes downloaded from https://www.nlm.nih.gov/news/coronavirus_genbank.html.
 
 ## Overview
 
